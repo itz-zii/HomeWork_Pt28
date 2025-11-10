@@ -1,326 +1,202 @@
-  const BASE_URL = `https://dummyjson.com`;
-  const query = {};
-  let postsData = [];
+ const BASE_URL = `https://dummyjson.com`;
+      const query = {};
+      let postsData = [];
 
-  const renderPosts = (posts) => {
-    const postListEl = document.querySelector(".js-post-list");
-
-    const startIndex = (currentPage - 1) * postsPerPage;
-    const endIndex = startIndex + postsPerPage;
-    const currentPosts = posts.slice(startIndex, endIndex);
-
-    const html = currentPosts
-      .map(
-        (post) => `
+      const renderPosts = (posts) => {
+        const postListEl = document.querySelector(".js-post-list");
+        const html = posts
+          .map(
+            (post) => `
           <div class="border border-gray-400 p-3 mb-3 rounded-md" data-id="${post.id}">
             <h2 class="text-2xl font-medium mb-3">${post.title}</h2>
             <p class="text-gray-700">${post.body}</p>
-
             <div class="flex mt-2 justify-between items-center">
               <button
                 class="js-view border border-gray-400 px-3 py-2 rounded-full cursor-pointer hover:bg-green-600 hover:text-white"
               >
                 Xem chi tiết
               </button>
-
               <div class="flex gap-3">
-                <span class="js-edit cursor-pointer text-green-600">Sửa</span>
-                <span class="js-delete cursor-pointer text-red-600">Xóa</span>
+                <span class="js-edit cursor-pointer text-green-600 ">Sửa</span>
+                <span class="js-delete cursor-pointer text-red-600 ">Xóa</span>
               </div>
             </div>
-          </div>
-        `
-      )
-      .join("");
+          </div>`
+          )
+          .join("");
+        postListEl.innerHTML = html;
+        addPostEvents();
+      };
 
-    postListEl.innerHTML = html + renderPagination(posts.length);
-    addPostEvents();
-    addPaginationEvents(posts);
-  };
+      const setLoading = (status = true) => {
+        const loadingEl = document.querySelector(".js-loading");
+        loadingEl.innerHTML = status
+          ? `<span class="text-3xl block text-center">Loading...</span>`
+          : "";
+      };
+      const renderError = (message) => {
+        document.querySelector(".js-post-list").innerHTML = `<p class="text-center text-red-600">${message}</p>`;
+      };
 
-  const addPaginationEvents = (posts) => {
-    const totalPages = Math.ceil(posts.length / postsPerPage);
-    document.querySelectorAll(".js-pagination button").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const action = btn.dataset.page;
-        if (btn.classList.contains("cursor-not-allowed")) return;
-
-        if (action === "first") currentPage = 1;
-        else if (action === "prev") currentPage = Math.max(1, currentPage - 1);
-        else if (action === "next") currentPage = Math.min(totalPages, currentPage + 1);
-        else if (action === "last") currentPage = totalPages;
-        else currentPage = Number(action);
-
-        renderPosts(posts);
-      });
-    });
-  };
-
-  const setLoading = (status = true) => {
-    const loadingEl = document.querySelector(".js-loading");
-    loadingEl.innerHTML = status
-      ? `<span class="text-3xl block text-center">Loading...</span>`
-      : "";
-  };
-
-  const renderError = (message) => {
-    document.querySelector(".js-post-list").innerHTML = `
-      <p class="text-center text-red-600">${message}</p>
-    `;
-  };
-
-  const fetchPosts = async () => {
-    try {
-      setLoading();
-      let url = `${BASE_URL}/posts`;
-      if (query.search) url = `${BASE_URL}/posts/search?q=${query.search}`;
-
-      const response = await fetch(url);
-      if (!response.ok) throw new Error("Lỗi khi tải dữ liệu");
-
-      const { posts } = await response.json();
-      postsData = posts;
-      currentPage = 1;
-      renderPosts(postsData);
-    } catch {
-      renderError("Đã có lỗi khi tải dữ liệu");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const openModal = (callback) => {
-    const modalEl = document.querySelector(".js-modal");
-    const modalTitle = modalEl.querySelector(".js-modal-title");
-    const modalContent = modalEl.querySelector(".js-modal-content");
-    modalEl.classList.remove("hidden");
-
-    const option = callback();
-    modalTitle.innerText = option.modalTitle;
-    modalContent.innerHTML = option.modalContent;
-  };
-
-  const closeModal = () => {
-    const modalEl = document.querySelector(".js-modal");
-    modalEl.classList.add("hidden");
-  };
-
-  const addEventCloseModal = () => {
-    const overlay = document.querySelector(".js-overlay");
-    overlay.addEventListener("click", closeModal);
-    document.addEventListener("keyup", (e) => {
-      if (e.key === "Escape") closeModal();
-    });
-  };
-  addEventCloseModal();
-
-  const debounce = (callback, timeout = 500) => {
-    let timeoutId;
-    return (...args) => {
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => callback(...args), timeout);
-    };
-  };
-
-  const addSearchEvent = () => {
-    const searchEl = document.querySelector(".js-search");
-    searchEl.addEventListener(
-      "input",
-      debounce((e) => {
-        query.search = e.target.value;
-        fetchPosts();
-      })
-    );
-  };
-
-  const addPostEvents = () => {
-    document.querySelectorAll(".js-view").forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        const postEl = e.target.closest("[data-id]");
-        const postId = postEl.dataset.id;
-        const post = postsData.find((p) => p.id == postId);
-
-        openModal(() => ({
-          modalTitle: post.title,
-          modalContent: `
-            <p class="text-gray-700">${post.body}</p>
-          `,
-        }));
-      });
-    });
-
-    document.querySelectorAll(".js-delete").forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        const postEl = e.target.closest("[data-id]");
-        const postId = postEl.dataset.id;
-        postsData = postsData.filter((p) => p.id != postId);
-
-        if ((currentPage - 1) * postsPerPage >= postsData.length) {
-          currentPage = Math.max(1, currentPage - 1);
-        }
-
-        renderPosts(postsData);
-      });
-    });
-
-    document.querySelectorAll(".js-edit").forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        const postEl = e.target.closest("[data-id]");
-        const postId = postEl.dataset.id;
-        const post = postsData.find((p) => p.id == postId);
-
-        openModal(() => ({
-          modalTitle: "Chỉnh sửa bài viết",
-          modalContent: `
-            <input
-              type="text"
-              class="js-edit-title w-full border border-gray-400 p-2 mb-3"
-              value="${post.title}"
-            />
-            <textarea
-              class="js-edit-body w-full border border-gray-400 p-2 mb-3 h-32"
-            >${post.body}</textarea>
-            <button
-              class="js-save-edit bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-            >
-              Lưu thay đổi
-            </button>
-          `,
-        }));
-
-        document.querySelector(".js-save-edit").addEventListener("click", () => {
-          const newTitle = document.querySelector(".js-edit-title").value;
-          const newBody = document.querySelector(".js-edit-body").value;
-          post.title = newTitle;
-          post.body = newBody;
+      const fetchPosts = async () => {
+        try {
+          setLoading();
+          let url = `${BASE_URL}/posts`;
+          if (query.search) url = `${BASE_URL}/posts/search?q=${query.search}`;
+          const response = await fetch(url);
+          if (!response.ok) throw new Error("Lỗi khi tải dữ liệu");
+          const { posts } = await response.json();
+          postsData = posts;
           renderPosts(postsData);
-          closeModal();
+        } catch {
+          renderError("Đã có lỗi khi tải dữ liệu");
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      const openModal = (callback) => {
+        const modalEl = document.querySelector(".js-modal");
+        const modalTitle = modalEl.querySelector(".js-modal-title");
+        const modalContent = modalEl.querySelector(".js-modal-content");
+        modalEl.classList.remove("hidden");
+        const option = callback();
+        modalTitle.innerText = option.modalTitle;
+        modalContent.innerHTML = option.modalContent;
+      };
+
+      const closeModal = () => {
+        const modalEl = document.querySelector(".js-modal");
+        modalEl.classList.add("hidden");
+      };
+
+      const addEventCloseModal = () => {
+        const overlay = document.querySelector(".js-overlay");
+        overlay.addEventListener("click", closeModal);
+        document.addEventListener("keyup", (e) => {
+          if (e.key === "Escape") closeModal();
         });
-      });
-    });
-  };
+      };
+      addEventCloseModal();
 
-  const New = () => {
-    const addBtn = document.querySelector(".js-add");
-    addBtn.addEventListener("click", () => {
-      openModal(() => ({
-        modalTitle: "Thêm mới bài viết",
-        modalContent: `
-          <input
-            type="text"
-            class="js-new-title w-full border border-gray-400 p-2 mb-3"
-            placeholder="Tiêu đề..."
-          />
-          <textarea
-            class="js-new-body w-full border border-gray-400 p-2 mb-3 h-32"
-            placeholder="Nội dung..."
-          ></textarea>
-          <button
-            class="js-save-new bg-green-800 text-white px-4 py-2 rounded hover:bg-green-700"
-          >
-            Thêm bài
-          </button>
-        `,
-      }));
+      const debounce = (callback, timeout = 500) => {
+        let timeoutId;
+        return (...args) => {
+          clearTimeout(timeoutId);
+          timeoutId = setTimeout(() => callback(...args), timeout);
+        };
+      };
 
-      document.querySelector(".js-save-new").addEventListener("click", () => {
-        const title = document.querySelector(".js-new-title").value.trim();
-        const body = document.querySelector(".js-new-body").value.trim();
-        if (!title || !body) return alert("Vui lòng nhập đầy đủ thông tin!");
+      const addSearchEvent = () => {
+        const searchEl = document.querySelector(".js-search");
+        searchEl.addEventListener(
+          "input",
+          debounce((e) => {
+            query.search = e.target.value;
+            fetchPosts();
+          })
+        );
+      };
 
-        const newPost = { id: Date.now(), title, body };
-        postsData.unshift(newPost);
-        currentPage = 1;
-        renderPosts(postsData);
-        closeModal();
-      });
-    });
-  };
+      const addPostEvents = () => {
+        document.querySelectorAll(".js-view").forEach((btn) => {
+          btn.addEventListener("click", (e) => {
+            const postEl = e.target.closest("[data-id]");
+            const postId = postEl.dataset.id;
+            const post = postsData.find((p) => p.id == postId);
+            openModal(() => ({
+              modalTitle: "Chi tiết bài viết",
+              modalContent: `
+                <h3 class="text-2xl font-semibold mb-2">${post.title}</h3>
+                <p>${post.body}</p>
+              `,
+            }));
+          });
+        });
 
-  const addSortButtons = () => {
-    const btnNewest = document.querySelector(".js-sort-newest");
-    const btnOldest = document.querySelector(".js-sort-oldest");
+        document.querySelectorAll(".js-delete").forEach((btn) => {
+          btn.addEventListener("click", (e) => {
+            const postEl = e.target.closest("[data-id]");
+            const postId = postEl.dataset.id;
+            postsData = postsData.filter((p) => p.id != postId);
+            renderPosts(postsData);
+          });
+        });
 
-    const toggleActive = (activeBtn, inactiveBtn) => {
-      activeBtn.classList.add("bg-yellow-300");
-      inactiveBtn.classList.remove("bg-yellow-300");
-      inactiveBtn.classList.add("bg-white");
-    };
+        document.querySelectorAll(".js-edit").forEach((btn) => {
+          btn.addEventListener("click", (e) => {
+            const postEl = e.target.closest("[data-id]");
+            const postId = postEl.dataset.id;
+            const post = postsData.find((p) => p.id == postId);
+            openModal(() => ({
+              modalTitle: "Chỉnh sửa bài viết",
+              modalContent: `
+                <input type="text" class="js-edit-title w-full border border-gray-400 p-2 mb-3" value="${post.title}" />
+                <textarea class="js-edit-body w-full border border-gray-400 p-2 mb-3 h-32">${post.body}</textarea>
+                <button class="js-save-edit bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Lưu thay đổi</button>
+              `,
+            }));
 
-    btnNewest.addEventListener("click", () => {
-      postsData.sort((a, b) => b.id - a.id);
-      renderPosts(postsData);
-      toggleActive(btnNewest, btnOldest);
-    });
+            document.querySelector(".js-save-edit").addEventListener("click", () => {
+              const newTitle = document.querySelector(".js-edit-title").value;
+              const newBody = document.querySelector(".js-edit-body").value;
+              post.title = newTitle;
+              post.body = newBody;
+              renderPosts(postsData);
+              closeModal();
+            });
+          });
+        });
+      };
 
-    btnOldest.addEventListener("click", () => {
-      postsData.sort((a, b) => a.id - b.id);
-      renderPosts(postsData);
-      toggleActive(btnOldest, btnNewest);
-    });
-  };
+      const New = () => {
+        const addBtn = document.querySelector(".js-add");
+        addBtn.addEventListener("click", () => {
+          openModal(() => ({
+            modalTitle: "Thêm mới bài viết",
+            modalContent: `
+              <input type="text" class="js-new-title w-full border border-gray-400 p-2 mb-3" placeholder="Tiêu đề..." />
+              <textarea class="js-new-body w-full border border-gray-400 p-2 mb-3 h-32" placeholder="Nội dung..."></textarea>
+              <button class="js-save-new bg-green-800 text-white px-4 py-2 rounded hover:bg-green-700">Thêm bài</button>
+            `,
+          }));
 
-  let currentPage = 1;
-  const postsPerPage = 5;
+          document.querySelector(".js-save-new").addEventListener("click", () => {
+            const title = document.querySelector(".js-new-title").value.trim();
+            const body = document.querySelector(".js-new-body").value.trim();
+            if (!title || !body) return alert("Vui lòng nhập đầy đủ thông tin!");
+            const newPost = { id: Date.now(), title, body };
+            postsData.unshift(newPost);
+            renderPosts(postsData);
+            closeModal();
+          });
+        });
+      };
 
-  const renderPagination = (totalPosts) => {
-    const totalPages = Math.ceil(totalPosts / postsPerPage);
-    if (totalPages <= 1) return "";
+      const addSortButtons = () => {
+        const btnNewest = document.querySelector(".js-sort-newest");
+        const btnOldest = document.querySelector(".js-sort-oldest");
 
-    let html = `
-      <div class="flex justify-center mt-5 gap-2 js-pagination">
-        <button
-          class="border border-gray-400 px-3 py-1 rounded hover:bg-green-200 ${
-            currentPage === 1 ? "opacity-50 cursor-not-allowed" : ""
-          }"
-          data-page="first"
-        >&laquo;</button>
+        const toggleActive = (activeBtn, inactiveBtn) => {
+          activeBtn.classList.add("bg-yellow-300");
+          inactiveBtn.classList.remove("bg-yellow-300");
+          inactiveBtn.classList.add("bg-white");
+        };
 
-        <button
-          class="border border-gray-400 px-3 py-1 rounded hover:bg-green-200 ${
-            currentPage === 1 ? "opacity-50 cursor-not-allowed" : ""
-          }"
-          data-page="prev"
-        >&lt;</button>
-    `;
+        btnNewest.addEventListener("click", () => {
+          postsData.sort((a, b) => b.id - a.id);
+          renderPosts(postsData);
+          toggleActive(btnNewest, btnOldest);
+        });
 
-    const maxVisible = 5;
-    let start = Math.max(1, currentPage - Math.floor(maxVisible / 2));
-    let end = Math.min(totalPages, start + maxVisible - 1);
-    if (end - start < maxVisible - 1) start = Math.max(1, end - maxVisible + 1);
+        btnOldest.addEventListener("click", () => {
+          postsData.sort((a, b) => a.id - b.id);
+          renderPosts(postsData);
+          toggleActive(btnOldest, btnNewest);
+        });
+      };
 
-    for (let i = start; i <= end; i++) {
-      html += `
-        <button
-          data-page="${i}"
-          class="border border-gray-400 px-3 py-1 rounded cursor-pointer ${
-            i === currentPage ? "bg-green-600 text-white" : "bg-white"
-          }"
-        >${i}</button>
-      `;
-    }
-
-    html += `
-        <button
-          class="border border-gray-400 px-3 py-1 rounded cursor-pointer ${
-            currentPage === totalPages ? "opacity-50 cursor-not-allowed" : ""
-          }"
-          data-page="next"
-        >&gt;</button>
-
-        <button
-          class="border border-gray-400 px-3 py-1 rounded cursor-pointer ${
-            currentPage === totalPages ? "opacity-50 cursor-not-allowed" : ""
-          }"
-          data-page="last"
-        >&raquo;</button>
-      </div>
-    `;
-
-    return html;
-  };
-
-  fetchPosts();
-  addSearchEvent();
-  New();
-  addSortButtons();
+      fetchPosts();
+      addSearchEvent();
+      New();
+      addSortButtons();
